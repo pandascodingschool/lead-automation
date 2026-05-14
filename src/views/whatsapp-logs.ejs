@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WhatsApp Logs — IndiaMART</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+    }
+
+    /* ── Top Nav ── */
+    nav {
+      background: #0f3460;
+      display: flex;
+      align-items: center;
+      padding: 0 32px;
+      gap: 0;
+    }
+    nav .brand { color: #fff; font-size: 1rem; font-weight: 700; padding: 16px 24px 16px 0; margin-right: 16px; border-right: 1px solid rgba(255,255,255,.2); }
+    nav a {
+      color: rgba(255,255,255,.75);
+      text-decoration: none;
+      padding: 18px 18px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      border-bottom: 3px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    nav a:hover { color: #fff; }
+    nav a.active { color: #fff; border-bottom-color: #e94560; }
+
+    main { padding: 28px 32px; max-width: 1200px; margin: 0 auto; }
+
+    /* Cards */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .card { background: #fff; border-radius: 10px; padding: 20px 24px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .card .label { font-size: 0.78rem; color: #888; text-transform: uppercase; letter-spacing: .05em; }
+    .card .value { font-size: 2rem; font-weight: 700; margin-top: 6px; color: #0f3460; }
+
+    /* Section */
+    .section h2 { font-size: 1rem; font-weight: 600; margin-bottom: 14px; color: #0f3460; border-left: 4px solid #e94560; padding-left: 10px; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    thead { background: #0f3460; color: #fff; }
+    thead th { padding: 12px 16px; text-align: left; font-size: 0.8rem; font-weight: 600; letter-spacing: .04em; white-space: nowrap; }
+    tbody tr { border-bottom: 1px solid #f0f0f0; transition: background .15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f7f9ff; }
+    td { padding: 11px 16px; font-size: 0.85rem; vertical-align: middle; }
+
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    .badge-sent   { background: #dcfce7; color: #15803d; }
+    .badge-failed { background: #fee2e2; color: #b91c1c; }
+    .badge-gray   { background: #f1f5f9; color: #64748b; }
+
+    .empty { text-align: center; padding: 40px; color: #aaa; font-size: 0.9rem; }
+
+    .sid { font-family: monospace; font-size: 0.75rem; color: #6d28d9; }
+    .err { font-size: 0.78rem; color: #b91c1c; max-width: 280px; word-break: break-word; }
+  </style>
+</head>
+<body>
+
+<!-- Top Navigation -->
+<nav>
+  <span class="brand">🏭 IndiaMART</span>
+  <a href="/dashboard">Dashboard</a>
+  <a href="/whatsapp-logs" class="active">WhatsApp Logs</a>
+</nav>
+
+<main>
+
+  <!-- Summary Cards -->
+  <div class="cards">
+    <div class="card">
+      <div class="label">Total Messages</div>
+      <div class="value"><%= logs.length %></div>
+    </div>
+    <div class="card">
+      <div class="label">Sent Successfully</div>
+      <div class="value" style="color:#15803d"><%= totalSent %></div>
+    </div>
+    <div class="card">
+      <div class="label">Failed</div>
+      <div class="value" style="color:#b91c1c"><%= totalFailed %></div>
+    </div>
+  </div>
+
+  <!-- Logs Table -->
+  <div class="section">
+    <h2>WhatsApp Message Log</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Lead</th>
+            <th>IndiaMART ID</th>
+            <th>Product</th>
+            <th>Mobile Sent To</th>
+            <th>Status</th>
+            <th>Twilio SID / Error</th>
+            <th>Sent At</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (logs.length === 0) { %>
+            <tr>
+              <td colspan="8" class="empty">No WhatsApp messages sent yet. Leads will trigger messages automatically when received.</td>
+            </tr>
+          <% } else { %>
+            <% logs.forEach((log, i) => { %>
+              <tr>
+                <td><%= i + 1 %></td>
+                <td><strong><%= log.lead.customerName %></strong></td>
+                <td><span class="badge badge-gray"><%= log.lead.externalLeadId %></span></td>
+                <td><%= log.lead.productName %></td>
+                <td><%= log.mobile %></td>
+                <td>
+                  <% if (log.status === 'sent') { %>
+                    <span class="badge badge-sent">✓ Sent</span>
+                  <% } else { %>
+                    <span class="badge badge-failed">✗ Failed</span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (log.twilioSid) { %>
+                    <span class="sid"><%= log.twilioSid %></span>
+                  <% } else if (log.errorMsg) { %>
+                    <span class="err"><%= log.errorMsg %></span>
+                  <% } else { %>
+                    <span style="color:#aaa">—</span>
+                  <% } %>
+                </td>
+                <td><%= new Date(log.sentAt).toLocaleString('en-IN') %></td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+</body>
+</html>

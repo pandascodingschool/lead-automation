@@ -1,0 +1,66 @@
+// Prisma schema for IndiaMART Lead Automation POC
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                      String                  @id @default(uuid())
+  name                    String
+  email                   String                  @unique
+  leads                   Lead[]
+  createdAt               DateTime                @default(now())
+  leadAssignmentHistories LeadAssignmentHistory[]
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+model Lead {
+  id                String                  @id @default(uuid())
+  externalLeadId    String                  @unique // IndiaMART lead_id — used for duplicate prevention
+  customerName      String
+  mobile            String
+  email             String?
+  productName       String
+  message           String?
+  city              String?
+  status            LeadStatus              @default(NEW)
+  assignedToId      String?
+  assignedTo        User?                   @relation(fields: [assignedToId], references: [id])
+  assignmentHistory LeadAssignmentHistory[]
+  whatsAppLogs      WhatsAppLog[]
+  createdAt         DateTime                @default(now())
+}
+
+// Tracks every outbound WhatsApp message attempt for a lead
+model WhatsAppLog {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  mobile    String
+  status    String // "sent" | "failed"
+  twilioSid String? // Twilio message SID on success
+  errorMsg  String? // error message on failure
+  sentAt    DateTime @default(now())
+}
+
+// Tracks every assignment / re-assignment of a lead
+model LeadAssignmentHistory {
+  id           String   @id @default(uuid())
+  leadId       String
+  lead         Lead     @relation(fields: [leadId], references: [id])
+  assignedToId String
+  assignedTo   User     @relation(fields: [assignedToId], references: [id])
+  assignedAt   DateTime @default(now())
+}

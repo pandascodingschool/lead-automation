@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IndiaMART Lead Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+    }
+
+    /* ── Top Nav ── */
+    nav {
+      background: #0f3460;
+      display: flex;
+      align-items: center;
+      padding: 0 32px;
+      gap: 0;
+    }
+    nav .brand { color: #fff; font-size: 1rem; font-weight: 700; padding: 16px 24px 16px 0; margin-right: 16px; border-right: 1px solid rgba(255,255,255,.2); }
+    nav a {
+      color: rgba(255,255,255,.75);
+      text-decoration: none;
+      padding: 18px 18px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      border-bottom: 3px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    nav a:hover { color: #fff; }
+    nav a.active { color: #fff; border-bottom-color: #e94560; }
+
+    main { padding: 28px 32px; max-width: 1300px; margin: 0 auto; }
+
+    /* Summary cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .card .label { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: .05em; }
+    .card .value { font-size: 2rem; font-weight: 700; margin-top: 6px; color: #0f3460; }
+
+    /* Sections */
+    .section { margin-bottom: 36px; }
+    .section h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 14px;
+      color: #0f3460;
+      border-left: 4px solid #e94560;
+      padding-left: 10px;
+    }
+
+    /* Tables */
+    .table-wrap { overflow-x: auto; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    thead { background: #0f3460; color: #fff; }
+    thead th { padding: 12px 16px; text-align: left; font-size: 0.8rem; font-weight: 600; letter-spacing: .04em; white-space: nowrap; }
+    tbody tr { border-bottom: 1px solid #f0f0f0; transition: background .15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f7f9ff; }
+    td { padding: 12px 16px; font-size: 0.87rem; vertical-align: middle; }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-blue       { background: #dbeafe; color: #1d4ed8; }
+    .badge-green      { background: #dcfce7; color: #15803d; }
+    .badge-gray       { background: #f1f5f9; color: #64748b; }
+    .badge-new        { background: #dbeafe; color: #1d4ed8; }
+    .badge-contacted  { background: #fef9c3; color: #854d0e; }
+    .badge-qualified  { background: #ede9fe; color: #6d28d9; }
+    .badge-won        { background: #dcfce7; color: #15803d; }
+    .badge-lost       { background: #fee2e2; color: #b91c1c; }
+
+    /* Status dropdown — styled as a small select */
+    .status-form { display: inline-flex; align-items: center; gap: 6px; }
+    .status-select {
+      padding: 4px 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #fff;
+      outline: none;
+    }
+    .status-select:focus { border-color: #0f3460; }
+
+    /* Assign dropdown (same style as status-select) */
+    .assign-form { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .assign-select {
+      padding: 4px 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #fff;
+      outline: none;
+      max-width: 130px;
+    }
+    .assign-select:focus { border-color: #0f3460; }
+
+    /* Assignment history popup */
+    .history-wrap { position: relative; display: inline-block; }
+    .history-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 0.72rem; color: #6d28d9; text-decoration: underline; padding: 0; margin-top: 3px;
+      display: block;
+    }
+    .history-popup {
+      display: none;
+      position: absolute;
+      z-index: 100;
+      top: 100%;
+      left: 0;
+      min-width: 220px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.12);
+      padding: 10px 14px;
+      font-size: 0.78rem;
+    }
+    .history-popup.open { display: block; }
+    .history-popup li { list-style: none; padding: 4px 0; border-bottom: 1px solid #f3f4f6; color: #374151; }
+    .history-popup li:last-child { border-bottom: none; }
+    .history-popup .hist-name { font-weight: 600; color: #0f3460; }
+    .history-popup .hist-time { color: #9ca3af; font-size: 0.72rem; }
+
+    .empty { text-align: center; padding: 40px; color: #aaa; font-size: 0.9rem; }
+
+    /* Flash messages */
+    .flash { padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 0.88rem; font-weight: 500; }
+    .flash-success { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .flash-error   { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+
+    /* Section heading row */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .section-header h2 { margin-bottom: 0; }
+
+    /* Add User form */
+    .add-user-form {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      margin-bottom: 16px;
+      display: none;
+    }
+    .add-user-form.open { display: block; }
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 180px; }
+    .form-group label { font-size: 0.78rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .04em; }
+    .form-group input {
+      padding: 9px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      font-size: 0.87rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .form-group input:focus { border-color: #0f3460; }
+    .btn { padding: 9px 20px; border: none; border-radius: 7px; font-size: 0.87rem; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #0f3460; color: #fff; }
+    .btn-outline { background: transparent; border: 1.5px solid #0f3460; color: #0f3460; }
+    .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="brand">🏭 IndiaMART</span>
+  <a href="/dashboard" class="active">Dashboard</a>
+  <a href="/whatsapp-logs">WhatsApp Logs</a>
+</nav>
+
+<main>
+
+  <!-- Summary Cards -->
+  <div class="cards">
+    <div class="card">
+      <div class="label">Total Leads</div>
+      <div class="value"><%= leads.length %></div>
+    </div>
+    <div class="card">
+      <div class="label">Assigned Leads</div>
+      <div class="value"><%= leads.filter(l => l.assignedTo).length %></div>
+    </div>
+    <div class="card">
+      <div class="label">Unassigned Leads</div>
+      <div class="value"><%= leads.filter(l => !l.assignedTo).length %></div>
+    </div>
+    <div class="card">
+      <div class="label">Sales Users</div>
+      <div class="value"><%= users.length %></div>
+    </div>
+  </div>
+
+  <!-- Flash messages -->
+  <% if (success) { %>
+    <div class="flash flash-success">✅ <%= success %></div>
+  <% } %>
+  <% if (error) { %>
+    <div class="flash flash-error">❌ <%= error %></div>
+  <% } %>
+
+  <!-- Users Section -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Sales Users</h2>
+      <button class="btn btn-outline btn-sm" onclick="toggleForm()">+ Add User</button>
+    </div>
+
+    <!-- Add User Form (toggled by button) -->
+    <div class="add-user-form" id="addUserForm">
+      <form action="/dashboard/users" method="POST">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" name="name" placeholder="e.g. Vikram Patel" required />
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="e.g. vikram@company.com" required />
+          </div>
+          <div style="display:flex; gap:8px; align-items:flex-end;">
+            <button type="submit" class="btn btn-primary">Save User</button>
+            <button type="button" class="btn btn-outline" onclick="toggleForm()">Cancel</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Leads Assigned</th>
+            <th>Joined</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (users.length === 0) { %>
+            <tr><td colspan="5" class="empty">No users found. Run <code>npm run db:seed</code>.</td></tr>
+          <% } else { %>
+            <% users.forEach((user, i) => { %>
+              <tr>
+                <td><%= i + 1 %></td>
+                <td><strong><%= user.name %></strong></td>
+                <td><%= user.email %></td>
+                <td>
+                  <span class="badge badge-blue"><%= user._count.leads %> leads</span>
+                </td>
+                <td><%= new Date(user.createdAt).toLocaleDateString('en-IN') %></td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Leads Table -->
+  <div class="section">
+    <h2>Leads</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>IndiaMART ID</th>
+            <th>Customer</th>
+            <th>Mobile</th>
+            <th>Product</th>
+            <th>City</th>
+            <th>Status</th>
+            <th>Assigned To</th>
+            <th>Received</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (leads.length === 0) { %>
+            <tr><td colspan="9" class="empty">No leads yet. Send a POST to <code>/webhook/indiamart</code>.</td></tr>
+          <% } else { %>
+            <%
+              const statusBadge = {
+                NEW:         'badge-new',
+                CONTACTED:   'badge-contacted',
+                QUALIFIED:   'badge-qualified',
+                CLOSED_WON:  'badge-won',
+                CLOSED_LOST: 'badge-lost',
+              };
+              const statusLabel = {
+                NEW:         'New',
+                CONTACTED:   'Contacted',
+                QUALIFIED:   'Qualified',
+                CLOSED_WON:  'Closed Won',
+                CLOSED_LOST: 'Closed Lost',
+              };
+              const allStatuses = ['NEW','CONTACTED','QUALIFIED','CLOSED_WON','CLOSED_LOST'];
+            %>
+            <% leads.forEach((lead, i) => { %>
+              <tr>
+                <td><%= i + 1 %></td>
+                <td><span class="badge badge-gray"><%= lead.externalLeadId %></span></td>
+                <td><strong><%= lead.customerName %></strong></td>
+                <td><%= lead.mobile %></td>
+                <td><%= lead.productName %></td>
+                <td><%= lead.city || '—' %></td>
+                <td>
+                  <form class="status-form" action="/dashboard/leads/<%= lead.id %>/status" method="POST">
+                    <span class="badge <%= statusBadge[lead.status] %>"><%= statusLabel[lead.status] %></span>
+                    <select class="status-select" name="status" onchange="this.form.submit()" title="Change status">
+                      <% allStatuses.forEach(s => { %>
+                        <option value="<%= s %>" <%= lead.status === s ? 'selected' : '' %>><%= statusLabel[s] %></option>
+                      <% }) %>
+                    </select>
+                  </form>
+                </td>
+                <td>
+                  <div class="history-wrap">
+                    <!-- Reassign dropdown — auto-submits on change -->
+                    <form class="assign-form" action="/dashboard/leads/<%= lead.id %>/assign" method="POST">
+                      <select class="assign-select" name="assignedToId" onchange="this.form.submit()" title="Reassign lead">
+                        <option value="">-- Unassigned --</option>
+                        <% users.forEach(u => { %>
+                          <option value="<%= u.id %>" <%= lead.assignedToId === u.id ? 'selected' : '' %>><%= u.name %></option>
+                        <% }) %>
+                      </select>
+                    </form>
+                    <!-- History toggle -->
+                    <% if (lead.assignmentHistory && lead.assignmentHistory.length > 0) { %>
+                      <button class="history-btn" onclick="toggleHistory('<%= lead.id %>')">
+                        📋 History (<%= lead.assignmentHistory.length %>)
+                      </button>
+                      <div class="history-popup" id="hist-<%= lead.id %>">
+                        <ul>
+                          <% lead.assignmentHistory.forEach((h, hi) => { %>
+                            <li>
+                              <span class="hist-name"><%= h.assignedTo.name %></span>
+                              <% if (hi === 0) { %><span style="color:#15803d;font-size:0.7rem"> ← current</span><% } %>
+                              <br/>
+                              <span class="hist-time"><%= new Date(h.assignedAt).toLocaleString('en-IN') %></span>
+                            </li>
+                          <% }) %>
+                        </ul>
+                      </div>
+                    <% } %>
+                  </div>
+                </td>
+                <td><%= new Date(lead.createdAt).toLocaleString('en-IN') %></td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  function toggleForm() {
+    const form = document.getElementById('addUserForm');
+    form.classList.toggle('open');
+  }
+
+  function toggleHistory(leadId) {
+    const popup = document.getElementById('hist-' + leadId);
+    if (!popup) return;
+    // Close all other open popups first
+    document.querySelectorAll('.history-popup.open').forEach(el => {
+      if (el !== popup) el.classList.remove('open');
+    });
+    popup.classList.toggle('open');
+  }
+
+  // Close history popups when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.history-wrap')) {
+      document.querySelectorAll('.history-popup.open').forEach(el => el.classList.remove('open'));
+    }
+  });
+
+  // Auto-open form if there was a validation error
+  <% if (error) { %>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('addUserForm').classList.add('open');
+    });
+  <% } %>
+</script>
+</body>
+</html>
