@@ -1,15 +1,34 @@
-# IndiaMART Lead Automation — POC
+# IndiaMART CRM
 
-Automatically receives, stores, and assigns IndiaMART leads without manual intervention.
+A full CRM built on Node.js + Express + PostgreSQL. Receives leads from IndiaMART via webhook, auto-assigns them to sales reps, and provides a complete web interface for managing leads, notes, follow-ups, and portal automation.
 
 ---
 
 ## Tech Stack
 
-- **Node.js + Express** — HTTP server and routing
-- **PostgreSQL** — persistent storage
-- **Prisma ORM** — schema management and DB access
-- **Twilio WhatsApp API** — automated customer notifications
+| Layer             | Technology                 |
+| ----------------- | -------------------------- |
+| Server            | Node.js + Express          |
+| Database          | PostgreSQL + Prisma ORM    |
+| Views             | EJS templates              |
+| Auth              | express-session + bcryptjs |
+| WhatsApp          | Twilio API                 |
+| Portal automation | Playwright (Chromium)      |
+
+---
+
+## Features
+
+- **Lead intake** — IndiaMART webhook + manual lead creation from dashboard
+- **Round-robin assignment** — auto-assigns leads across sales users
+- **Lead detail page** — full CRM view per lead
+- **Notes** — internal notes per lead with author + timestamp
+- **Follow-ups** — schedule follow-ups with date/time, mark done, overdue alerts
+- **Activity timeline** — append-only log of every action on a lead
+- **WhatsApp notifications** — customer notified on lead assignment via Twilio
+- **Portal automation** — Playwright pushes assignments to IndiaMART seller portal
+- **Session auth** — login page, protected routes, 7-day sessions stored in Postgres
+- **Today's follow-ups** — dashboard widget showing today's pending follow-ups
 
 ---
 
@@ -18,20 +37,49 @@ Automatically receives, stores, and assigns IndiaMART leads without manual inter
 ```
 indiamart-lead-automation/
 ├── prisma/
-│   ├── schema.prisma        # DB schema (User, Lead models)
-│   └── seed.js              # Seeds initial users
+│   ├── schema.prisma          # DB schema — all models
+│   ├── seed.js                # Seeds initial sales users
+│   └── seedAdmin.js           # Creates/resets the admin login user
 ├── src/
-│   ├── server.js            # Express entry point
+│   ├── server.js              # Express entry point, session setup, route mounting
+│   ├── middleware/
+│   │   └── auth.js            # requireAuth / requireAdmin middleware
 │   ├── routes/
-│   │   └── webhookRoutes.js # Route definitions
+│   │   ├── authRoutes.js      # GET/POST /login, GET /login/logout
+│   │   ├── dashboardRoutes.js # Dashboard + user/lead CRUD
+│   │   ├── leadRoutes.js      # Lead detail, notes, follow-ups
+│   │   ├── portalJobsRoutes.js# Portal job list + login session control
+│   │   ├── webhookRoutes.js   # POST /webhook/indiamart
+│   │   └── whatsappLogsRoutes.js
 │   ├── controllers/
-│   │   └── webhookController.js  # Request validation and response
+│   │   ├── authController.js
+│   │   ├── dashboardController.js
+│   │   ├── leadController.js
+│   │   ├── portalJobsController.js
+│   │   ├── webhookController.js
+│   │   └── whatsappLogsController.js
 │   ├── services/
-│   │   └── leadService.js   # Business logic (duplicate check, assignment)
-│   └── utils/
-│       └── prisma.js        # Singleton Prisma client
+│   │   ├── leadService.js     # Assignment logic, portal job queuing
+│   │   └── whatsappService.js # Twilio WhatsApp sender
+│   ├── portal/
+│   │   ├── config.js          # Portal URLs + Playwright selectors
+│   │   ├── login.js           # CLI: manual browser login → saves session
+│   │   ├── assignLead.js      # Playwright flow to assign a lead in portal
+│   │   └── sessionManager.js  # Singleton: headed browser for UI-triggered login
+│   ├── workers/
+│   │   └── portalWorker.js    # Polls DB for pending jobs, runs Playwright
+│   ├── utils/
+│   │   ├── activity.js        # logActivity() helper
+│   │   └── prisma.js          # Singleton Prisma client
+│   └── views/
+│       ├── login.ejs
+│       ├── dashboard.ejs
+│       ├── lead-detail.ejs
+│       ├── portal-jobs.ejs
+│       └── whatsapp-logs.ejs
+├── sessions/                  # storageState.json (gitignored)
+├── logs/                      # failure screenshots (gitignored)
 ├── .env.example
-├── .env                     # Local config (not committed)
 └── package.json
 ```
 
@@ -47,144 +95,121 @@ npm install
 
 ### 2. Configure environment
 
-Copy `.env.example` to `.env` and update the `DATABASE_URL`:
-
 ```bash
 cp .env.example .env
 ```
 
 Edit `.env`:
 
-```
+```env
 DATABASE_URL="postgresql://postgres:yourpassword@localhost:5432/indiamart_leads"
 PORT=3000
+SESSION_SECRET=change-this-to-a-long-random-string
+
+# Twilio WhatsApp (optional)
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+WHATSAPP_ENABLED=false
 ```
 
-> Make sure PostgreSQL is running and the database `indiamart_leads` exists.
-
-Create the database if it doesn't exist:
+### 3. Create database
 
 ```sql
 CREATE DATABASE indiamart_leads;
 ```
 
-### 3. Run Prisma migration
+### 4. Run migrations
 
 ```bash
-npm run db:migrate
+npx prisma migrate dev
 ```
 
-### 4. Seed users
+### 5. Seed data
 
 ```bash
+# Create sales users
 npm run db:seed
+
+# Create admin login account (admin@crm.local / admin123)
+npm run db:seed-admin
 ```
 
-This creates 4 sales users: Amit Sharma, Priya Verma, Rahul Singh, Neha Gupta.
-
-### 5. Start the server
+To use a custom admin email/password:
 
 ```bash
-# Development (auto-reload)
-npm run dev
-
-# Production
-npm start
+ADMIN_EMAIL=you@company.com ADMIN_PASSWORD=yourpass ADMIN_NAME="Your Name" node prisma/seedAdmin.js
 ```
 
-Server starts at: `http://localhost:3000`
+### 6. Start the server
+
+```bash
+npm run dev     # development (nodemon)
+npm start       # production
+```
+
+Open: `http://localhost:3000` → redirects to `/login`
 
 ---
 
-## API Reference
+## Authentication
 
-### Health Check
+All UI routes require login. The webhook (`/webhook/indiamart`) is public.
 
-```
-GET /health
-```
+| Credential | Default           |
+| ---------- | ----------------- |
+| Email      | `admin@crm.local` |
+| Password   | `admin123`        |
 
-Response:
+> Change this immediately in production using `npm run db:seed-admin`.
 
-```json
-{ "status": "ok", "timestamp": "2026-05-13T..." }
+**Roles:**
+
+- `ADMIN` — full access
+- `SALES` — full access (role-gating for admin-only actions coming in a future sprint)
+
+Sessions last **7 days** and are stored in the `session` Postgres table.
+
+---
+
+## Pages
+
+| URL              | Description                                                   |
+| ---------------- | ------------------------------------------------------------- |
+| `/login`         | Sign-in page                                                  |
+| `/dashboard`     | Lead table, user table, today's follow-ups, + Add Lead        |
+| `/leads/:id`     | Full CRM detail: notes, follow-ups, activity timeline, status |
+| `/whatsapp-logs` | All outbound WhatsApp message attempts                        |
+| `/portal-jobs`   | IndiaMART portal assignment job queue                         |
+
+---
+
+## npm Scripts
+
+```bash
+npm run dev            # Start with nodemon (auto-reload)
+npm start              # Start in production mode
+npm run db:migrate     # Run Prisma migrations
+npm run db:generate    # Regenerate Prisma client
+npm run db:seed        # Seed initial sales users
+npm run db:seed-admin  # Create/reset admin login user
+npm run db:studio      # Open Prisma Studio (browser DB GUI)
+npm run portal:login   # Manual IndiaMART portal login → saves session
+npm run portal:worker  # Start background portal assignment worker
 ```
 
 ---
 
-### Receive Lead (Webhook)
+## Webhook API
+
+### Receive Lead
 
 ```
 POST /webhook/indiamart
 Content-Type: application/json
 ```
 
-**Request Body:**
-
-```json
-{
-  "lead_id": "IND123",
-  "customer_name": "Pankaj",
-  "mobile": "9999999999",
-  "email": "pankaj@test.com",
-  "product": "Industrial Pump",
-  "message": "Need pricing details",
-  "city": "Jaipur"
-}
-```
-
-**Required fields:** `lead_id`, `customer_name`, `mobile`, `product`
-
-**Success Response (201):**
-
-```json
-{
-  "success": true,
-  "leadId": "uuid-generated-id",
-  "assignedTo": "Amit Sharma",
-  "message": "Lead created successfully"
-}
-```
-
-**Duplicate Response (200):**
-
-```json
-{
-  "success": false,
-  "message": "Duplicate lead ignored"
-}
-```
-
-**Validation Error (400):**
-
-```json
-{
-  "success": false,
-  "message": "Missing required fields: lead_id, customer_name, mobile, product"
-}
-```
-
----
-
-## Lead Assignment Logic
-
-Uses **round-robin** assignment across all seeded users:
-
-- Lead 1 → Amit Sharma
-- Lead 2 → Priya Verma
-- Lead 3 → Rahul Singh
-- Lead 4 → Neha Gupta
-- Lead 5 → Amit Sharma (cycles back)
-
----
-
-## Testing with Postman
-
-1. Import the request below or create manually:
-   - Method: `POST`
-   - URL: `http://localhost:3000/webhook/indiamart`
-   - Headers: `Content-Type: application/json`
-   - Body (raw JSON):
+**Body:**
 
 ```json
 {
@@ -198,94 +223,115 @@ Uses **round-robin** assignment across all seeded users:
 }
 ```
 
-2. Send the same request again to test **duplicate prevention**.
+**Required:** `lead_id`, `customer_name`, `mobile`, `product`
 
----
+**Responses:**
 
-## Testing with ngrok (Webhook Simulation)
+```json
+{ "success": true, "leadId": "uuid", "assignedTo": "Amit Sharma", "message": "Lead created successfully" }
+{ "success": false, "message": "Duplicate lead ignored" }
+{ "success": false, "message": "Missing required fields: ..." }
+```
+
+### Test locally
+
+```bash
+curl -X POST http://localhost:3000/webhook/indiamart \
+  -H "Content-Type: application/json" \
+  -d '{"lead_id":"TEST001","customer_name":"Rajesh Kumar","mobile":"9876543210","product":"Steel Pipes","city":"Mumbai"}'
+```
+
+### Expose via ngrok
 
 ```bash
 ngrok http 3000
-```
-
-Use the generated HTTPS URL as your IndiaMART webhook endpoint:
-
-```
-https://xxxx.ngrok.io/webhook/indiamart
+# Use: https://xxxx.ngrok.io/webhook/indiamart
 ```
 
 ---
 
-## Prisma Studio (DB GUI)
+## Lead Detail Page
+
+Click any **customer name** (or the **View →** button) in the leads table to open `/leads/:id`.
+
+Features on the detail page:
+
+- **Status** — change between New / Contacted / Qualified / Closed Won / Closed Lost
+- **Notes** — add internal notes; logged to activity timeline
+- **Follow-ups** — schedule by date+time, mark done, overdue shown in red
+- **Activity timeline** — all status changes, notes, assignments, follow-ups, WhatsApp messages
+- **WhatsApp log** — delivery history for this lead
+- **Assignment history** — every reassignment
+
+---
+
+## Portal Automation (IndiaMART)
+
+Pushes lead assignments back to the IndiaMART seller portal using Playwright.
+
+### First-time login
 
 ```bash
-npm run db:studio
+npm run portal:login
 ```
 
-Opens a browser-based UI to inspect Users and Leads tables.
+Opens a real browser window. Log in manually (handle OTP/captcha), then press ENTER. Session saved to `sessions/storageState.json`.
+
+### Run the worker
+
+```bash
+npm run portal:worker
+```
+
+Polls for `PENDING` portal assignment jobs every 10 seconds and assigns leads in the portal headlessly. Failed jobs are retried up to 3 times with screenshots saved to `logs/`.
+
+### UI login (alternative)
+
+On the **Portal Jobs** page, use the IndiaMART Connection card to start/finish/cancel a browser login session without the CLI.
 
 ---
 
-## WhatsApp Integration (Twilio Sandbox)
+## WhatsApp Integration
 
-### Setup Steps
+Set `WHATSAPP_ENABLED=true` in `.env` and configure Twilio credentials. Customer receives a message when their lead is assigned.
 
-1. **Create a Twilio account** at [twilio.com](https://www.twilio.com) (free trial available)
+> **Twilio Sandbox:** Every test recipient must join the sandbox by sending `join <word>` to your sandbox number once.
 
-2. **Activate the WhatsApp Sandbox**
-   - Go to Twilio Console → Messaging → Try it out → Send a WhatsApp message
-   - You'll get a sandbox number (e.g. `+14155238886`)
-   - Send the join code (e.g. `join <word>`) from your customer's WhatsApp to the sandbox number — **every test recipient must do this once**
-
-3. **Copy credentials to `.env`**
-
-```env
-TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_AUTH_TOKEN=your_auth_token_here
-TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
-WHATSAPP_ENABLED=true
-```
-
-4. **Test** — POST a lead with a valid mobile number. The customer will receive:
-
-```
-Hello Rahul Sharma! 👋
-
-Thank you for your enquiry about *Industrial Pump*.
-
-We have received your request and *Amit Sharma* from our sales team will get in touch with you shortly.
-
-📋 *Enquiry Summary*
-• Product: Industrial Pump
-• Location: Jaipur
-• Your message: _Need quotation_
-
-For urgent queries, feel free to reply to this message.
-
-— IndiaMART Lead Team
-```
-
-### How It Works
-
-- WhatsApp notification is sent **after** the lead is saved to DB
-- It is **fire-and-forget** — a Twilio failure will NOT fail the lead creation API response
-- Set `WHATSAPP_ENABLED=false` in `.env` to disable notifications during development
-- Indian mobile numbers without `+91` are automatically normalised
-
-### Moving to Production (Post-POC)
-
-The Twilio Sandbox requires each recipient to opt-in manually. For production:
-
-- Apply for a **WhatsApp Business Account** via Meta or use a BSP like Interakt/WATI
-- Use pre-approved **message templates** (required by Meta for outbound messages)
+For production: apply for WhatsApp Business via Meta or a BSP (Interakt, WATI, etc.) and use approved message templates.
 
 ---
 
-## POC Success Criteria
+## Database Schema
 
-- [x] Webhook receives lead payload
-- [x] Lead is stored in PostgreSQL
-- [x] Lead auto-assigned via round-robin
-- [x] Duplicate leads are ignored
-- [x] Correct API responses returned
-- [x] End-to-end flow works locally
+| Model                   | Purpose                         |
+| ----------------------- | ------------------------------- |
+| `User`                  | Sales reps + admin accounts     |
+| `Lead`                  | Customer enquiries              |
+| `LeadNote`              | Internal notes on a lead        |
+| `FollowUp`              | Scheduled follow-up tasks       |
+| `LeadActivity`          | Append-only activity timeline   |
+| `LeadAssignmentHistory` | Every reassignment record       |
+| `WhatsAppLog`           | Every outbound WhatsApp attempt |
+| `PortalAssignmentJob`   | Portal automation job queue     |
+
+---
+
+## Feature Status
+
+- [x] Webhook lead intake + duplicate prevention
+- [x] Round-robin auto-assignment
+- [x] Dashboard — lead & user management
+- [x] Manual lead creation from dashboard
+- [x] Lead detail page
+- [x] Notes per lead
+- [x] Follow-ups (schedule + complete)
+- [x] Activity timeline
+- [x] WhatsApp customer notifications
+- [x] WhatsApp logs page
+- [x] IndiaMART portal automation (Playwright)
+- [x] Portal job queue + retry UI
+- [x] Session auth (login page, protected routes)
+- [ ] Password management for sales users (sprint 2)
+- [ ] Lead search + filters (sprint 2)
+- [ ] Pipeline / Kanban view (sprint 2)
+- [ ] Reporting & analytics (sprint 3)
