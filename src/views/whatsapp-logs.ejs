@@ -33,6 +33,10 @@
     }
     nav a:hover { color: #fff; }
     nav a.active { color: #fff; border-bottom-color: #e94560; }
+    nav .session-pill { margin-left: auto; padding: 5px 12px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; text-decoration: none; }
+    nav .session-pill.connected    { background: #dcfce7; color: #15803d; }
+    nav .session-pill.disconnected { background: #fee2e2; color: #b91c1c; }
+    nav .session-pill.in-progress  { background: #dbeafe; color: #1d4ed8; }
 
     main { padding: 28px 32px; max-width: 1200px; margin: 0 auto; }
 
@@ -73,6 +77,14 @@
   <span class="brand">🏭 IndiaMART</span>
   <a href="/dashboard">Dashboard</a>
   <a href="/whatsapp-logs" class="active">WhatsApp Logs</a>
+  <a href="/portal-jobs">Portal Jobs</a>
+  <% if (portalSession.loginInProgress) { %>
+    <a href="/portal-jobs" class="session-pill in-progress">⏳ Login in progress</a>
+  <% } else if (portalSession.connected) { %>
+    <a href="/portal-jobs" class="session-pill connected">✓ IndiaMART connected</a>
+  <% } else { %>
+    <a href="/portal-jobs" class="session-pill disconnected">⚠ IndiaMART not connected</a>
+  <% } %>
 </nav>
 
 <main>

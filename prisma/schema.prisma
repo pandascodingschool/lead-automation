@@ -9,13 +9,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  ADMIN
+  SALES
+}
+
 model User {
   id                      String                  @id @default(uuid())
   name                    String
   email                   String                  @unique
+  passwordHash            String? // null for legacy users created before auth
+  role                    UserRole                @default(SALES)
+  portalUserName          String? // exact name as shown in IndiaMART seller panel
   leads                   Lead[]
   createdAt               DateTime                @default(now())
   leadAssignmentHistories LeadAssignmentHistory[]
+  portalAssignmentJobs    PortalAssignmentJob[]
+  leadNotes               LeadNote[]
+  followUps               FollowUp[]
+  leadActivities          LeadActivity[]
 }
 
 enum LeadStatus {
@@ -40,7 +52,71 @@ model Lead {
   assignedTo        User?                   @relation(fields: [assignedToId], references: [id])
   assignmentHistory LeadAssignmentHistory[]
   whatsAppLogs      WhatsAppLog[]
+  portalJobs        PortalAssignmentJob[]
+  notes             LeadNote[]
+  followUps         FollowUp[]
+  activities        LeadActivity[]
   createdAt         DateTime                @default(now())
+}
+
+// Internal notes written by sales reps on a lead
+model LeadNote {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  text      String
+  createdAt DateTime @default(now())
+}
+
+// Scheduled follow-ups for a lead
+model FollowUp {
+  id          String    @id @default(uuid())
+  leadId      String
+  lead        Lead      @relation(fields: [leadId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  note        String?
+  scheduledAt DateTime
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+// Append-only activity log for a lead (status changes, assignments, notes, follow-ups, WhatsApp)
+model LeadActivity {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  type      String // NOTE | STATUS_CHANGE | ASSIGNMENT | FOLLOWUP_ADDED | FOLLOWUP_DONE | WHATSAPP_SENT
+  body      String? // human-readable description
+  createdAt DateTime @default(now())
+}
+
+enum PortalJobStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
+// Tracks every attempt to push an assignment back into the IndiaMART seller portal
+model PortalAssignmentJob {
+  id          String          @id @default(uuid())
+  leadId      String
+  lead        Lead            @relation(fields: [leadId], references: [id])
+  userId      String
+  user        User            @relation(fields: [userId], references: [id])
+  portalUser  String // exact name as shown in IndiaMART seller panel
+  status      PortalJobStatus @default(PENDING)
+  attempts    Int             @default(0)
+  errorMsg    String?
+  screenshot  String? // path to failure screenshot
+  createdAt   DateTime        @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
 }
 
 // Tracks every outbound WhatsApp message attempt for a lead

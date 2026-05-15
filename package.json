@@ -9,13 +9,20 @@
     "db:migrate": "npx prisma migrate dev --name init",
     "db:generate": "npx prisma generate",
     "db:seed": "node prisma/seed.js",
-    "db:studio": "npx prisma studio"
+    "db:studio": "npx prisma studio",
+    "portal:login": "node src/portal/login.js",
+    "portal:worker": "node src/workers/portalWorker.js",
+    "db:seed-admin": "node prisma/seedAdmin.js"
   },
   "dependencies": {
     "@prisma/client": "^5.13.0",
+    "bcryptjs": "^3.0.3",
+    "connect-pg-simple": "^10.0.0",
     "dotenv": "^16.4.5",
     "ejs": "^5.0.2",
     "express": "^4.19.2",
+    "express-session": "^1.19.0",
+    "playwright": "^1.60.0",
     "twilio": "^6.0.2"
   },
   "devDependencies": {

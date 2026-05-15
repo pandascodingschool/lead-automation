@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Portal Jobs — IndiaMART</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; }
+
+    nav { background: #0f3460; display: flex; align-items: center; padding: 0 32px; }
+    nav .brand { color: #fff; font-size: 1rem; font-weight: 700; padding: 16px 24px 16px 0; margin-right: 16px; border-right: 1px solid rgba(255,255,255,.2); }
+    nav a { color: rgba(255,255,255,.75); text-decoration: none; padding: 18px 18px; font-size: 0.88rem; font-weight: 500; border-bottom: 3px solid transparent; transition: color .15s, border-color .15s; }
+    nav a:hover { color: #fff; }
+    nav a.active { color: #fff; border-bottom-color: #e94560; }
+    nav .session-pill { margin-left: auto; padding: 5px 12px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; text-decoration: none; }
+    nav .session-pill.connected    { background: #dcfce7; color: #15803d; }
+    nav .session-pill.disconnected { background: #fee2e2; color: #b91c1c; }
+    nav .session-pill.in-progress  { background: #dbeafe; color: #1d4ed8; }
+
+    main { padding: 28px 32px; max-width: 1300px; margin: 0 auto; }
+
+    .flash { padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 0.88rem; font-weight: 500; }
+    .flash-success { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .flash-error   { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 26px; }
+    .card { background: #fff; border-radius: 10px; padding: 18px 22px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .card .label { font-size: 0.74rem; color: #888; text-transform: uppercase; letter-spacing: .05em; }
+    .card .value { font-size: 1.8rem; font-weight: 700; margin-top: 4px; }
+
+    h2 { font-size: 1rem; font-weight: 600; margin-bottom: 14px; color: #0f3460; border-left: 4px solid #e94560; padding-left: 10px; }
+
+    .table-wrap { overflow-x: auto; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    thead { background: #0f3460; color: #fff; }
+    thead th { padding: 12px 16px; text-align: left; font-size: 0.8rem; font-weight: 600; letter-spacing: .04em; white-space: nowrap; }
+    tbody tr { border-bottom: 1px solid #f0f0f0; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f7f9ff; }
+    td { padding: 11px 16px; font-size: 0.85rem; vertical-align: middle; }
+
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.74rem; font-weight: 600; }
+    .badge-pending  { background: #dbeafe; color: #1d4ed8; }
+    .badge-running  { background: #fef9c3; color: #854d0e; }
+    .badge-done     { background: #dcfce7; color: #15803d; }
+    .badge-failed   { background: #fee2e2; color: #b91c1c; }
+    .badge-gray     { background: #f1f5f9; color: #64748b; }
+
+    .err { font-size: 0.78rem; color: #b91c1c; max-width: 300px; word-break: break-word; }
+    .empty { text-align: center; padding: 40px; color: #aaa; font-size: 0.9rem; }
+
+    .btn-retry { background: #0f3460; color: #fff; border: none; padding: 5px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+    .btn-retry:hover { opacity: 0.85; }
+
+    .info-banner { background: #fef9c3; border: 1px solid #fde68a; color: #854d0e; padding: 12px 18px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 20px; }
+    .info-banner code { background: rgba(0,0,0,0.06); padding: 1px 6px; border-radius: 4px; font-size: 0.82rem; }
+
+    /* Connection card */
+    .conn-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+    .conn-card.connected     { border-left: 5px solid #15803d; }
+    .conn-card.disconnected  { border-left: 5px solid #b91c1c; }
+    .conn-card.in-progress   { border-left: 5px solid #1d4ed8; }
+    .conn-icon { font-size: 2rem; line-height: 1; }
+    .conn-text { flex: 1; min-width: 220px; }
+    .conn-text .title { font-size: 0.95rem; font-weight: 600; color: #0f3460; margin-bottom: 4px; }
+    .conn-text .meta  { font-size: 0.82rem; color: #555; }
+    .conn-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn { padding: 9px 18px; border: none; border-radius: 7px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #0f3460; color: #fff; }
+    .btn-success { background: #15803d; color: #fff; }
+    .btn-danger  { background: #b91c1c; color: #fff; }
+    .btn-outline { background: transparent; border: 1.5px solid #0f3460; color: #0f3460; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="brand">🏭 IndiaMART</span>
+  <a href="/dashboard">Dashboard</a>
+  <a href="/whatsapp-logs">WhatsApp Logs</a>
+  <a href="/portal-jobs" class="active">Portal Jobs</a>
+  <% if (portalSession.loginInProgress) { %>
+    <span class="session-pill in-progress">⏳ Login in progress</span>
+  <% } else if (portalSession.connected) { %>
+    <span class="session-pill connected">✓ IndiaMART connected</span>
+  <% } else { %>
+    <span class="session-pill disconnected">⚠ IndiaMART not connected</span>
+  <% } %>
+</nav>
+
+<main>
+  <% if (success) { %><div class="flash flash-success">✓ <%= success %></div><% } %>
+  <% if (error)   { %><div class="flash flash-error">✗ <%= error %></div><% } %>
+
+  <!-- ── IndiaMART Connection Card ── -->
+  <% if (session.loginInProgress) { %>
+    <div class="conn-card in-progress">
+      <div class="conn-icon">🌐</div>
+      <div class="conn-text">
+        <div class="title">Login in progress…</div>
+        <div class="meta">A browser window has opened. Complete the IndiaMART login (mobile + OTP) there, then click <strong>I'm done</strong> below to save the session.</div>
+      </div>
+      <div class="conn-actions">
+        <form action="/portal-jobs/login/finish" method="POST" style="display:inline">
+          <button class="btn btn-success" type="submit">✓ I'm done — Save session</button>
+        </form>
+        <form action="/portal-jobs/login/cancel" method="POST" style="display:inline">
+          <button class="btn btn-outline" type="submit">Cancel</button>
+        </form>
+      </div>
+    </div>
+  <% } else if (session.connected) { %>
+    <div class="conn-card connected">
+      <div class="conn-icon">✅</div>
+      <div class="conn-text">
+        <div class="title">Connected to IndiaMART</div>
+        <div class="meta">Session saved <%= new Date(session.savedAt).toLocaleString('en-IN') %>. The worker can push assignments. Reconnect if you start seeing auth errors.</div>
+      </div>
+      <div class="conn-actions">
+        <form action="/portal-jobs/login/start" method="POST" style="display:inline">
+          <button class="btn btn-outline" type="submit" <%= session.canLaunchBrowser ? '' : 'disabled' %>>↻ Reconnect</button>
+        </form>
+      </div>
+    </div>
+  <% } else { %>
+    <div class="conn-card disconnected">
+      <div class="conn-icon">⚠️</div>
+      <div class="conn-text">
+        <div class="title">Not connected to IndiaMART</div>
+        <div class="meta">No saved session found. Click below to open IndiaMART in a browser window and log in. Your session will be saved so the worker can push assignments automatically.</div>
+      </div>
+      <div class="conn-actions">
+        <form action="/portal-jobs/login/start" method="POST" style="display:inline">
+          <button class="btn btn-primary" type="submit" <%= session.canLaunchBrowser ? '' : 'disabled' %>>🔐 Connect to IndiaMART</button>
+        </form>
+      </div>
+    </div>
+  <% } %>
+
+  <% if (!session.canLaunchBrowser) { %>
+    <div class="info-banner">
+      ⚠️ This server cannot launch a browser (no display). To connect, run <code>npm run portal:login</code> from a workstation and copy <code>sessions/storageState.json</code> to the server.
+    </div>
+  <% } %>
+
+  <div class="cards">
+    <div class="card"><div class="label">Total</div><div class="value" style="color:#0f3460"><%= counts.total %></div></div>
+    <div class="card"><div class="label">Pending</div><div class="value" style="color:#1d4ed8"><%= counts.pending %></div></div>
+    <div class="card"><div class="label">Running</div><div class="value" style="color:#854d0e"><%= counts.running %></div></div>
+    <div class="card"><div class="label">Done</div><div class="value" style="color:#15803d"><%= counts.done %></div></div>
+    <div class="card"><div class="label">Failed</div><div class="value" style="color:#b91c1c"><%= counts.failed %></div></div>
+  </div>
+
+  <h2>Portal Assignment Jobs (latest 200)</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Lead</th>
+          <th>IndiaMART ID</th>
+          <th>Product</th>
+          <th>Portal User</th>
+          <th>Status</th>
+          <th>Attempts</th>
+          <th>Error</th>
+          <th>Created</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (jobs.length === 0) { %>
+          <tr><td colspan="10" class="empty">No portal jobs yet. Add a user with <strong>Portal Name</strong> and a new lead will create one.</td></tr>
+        <% } else { %>
+          <% jobs.forEach((job, i) => { %>
+            <tr>
+              <td><%= i + 1 %></td>
+              <td><strong><%= job.lead.customerName %></strong></td>
+              <td><span class="badge badge-gray"><%= job.lead.externalLeadId %></span></td>
+              <td><%= job.lead.productName %></td>
+              <td><%= job.portalUser %></td>
+              <td>
+                <% const cls = {PENDING:'badge-pending',RUNNING:'badge-running',DONE:'badge-done',FAILED:'badge-failed'}[job.status] %>
+                <span class="badge <%= cls %>"><%= job.status %></span>
+              </td>
+              <td><%= job.attempts %></td>
+              <td>
+                <% if (job.errorMsg) { %><span class="err"><%= job.errorMsg %></span><% } else { %><span style="color:#aaa">—</span><% } %>
+              </td>
+              <td><%= new Date(job.createdAt).toLocaleString('en-IN') %></td>
+              <td>
+                <% if (job.status === 'FAILED') { %>
+                  <form action="/portal-jobs/<%= job.id %>/retry" method="POST" style="display:inline">
+                    <button class="btn-retry" type="submit">↻ Retry</button>
+                  </form>
+                <% } else { %>
+                  <span style="color:#aaa">—</span>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</main>
+</body>
+</html>

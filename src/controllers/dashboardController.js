@@ -3,7 +3,12 @@ const prisma = require('../utils/prisma');
 
 async function showDashboard(req, res) {
   try {
-    const [users, leads] = await Promise.all([
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const [users, leads, todayFollowUps] = await Promise.all([
       prisma.user.findMany({
         orderBy: { createdAt: 'asc' },
         include: { _count: { select: { leads: true } } },
@@ -18,11 +23,23 @@ async function showDashboard(req, res) {
           },
         },
       }),
+      prisma.followUp.findMany({
+        where: {
+          scheduledAt: { gte: todayStart, lte: todayEnd },
+          completedAt: null,
+        },
+        orderBy: { scheduledAt: 'asc' },
+        include: {
+          lead: { select: { id: true, customerName: true, productName: true } },
+          user: { select: { name: true } },
+        },
+      }),
     ]);
 
     res.render('dashboard', {
       users,
       leads,
+      todayFollowUps,
       success: req.query.success || null,
       error: req.query.error || null,
     });
@@ -37,7 +54,7 @@ async function showDashboard(req, res) {
  * Creates a new sales user. Redirects back to dashboard.
  */
 async function addUser(req, res) {
-  const { name, email } = req.body;
+  const { name, email, portalUserName } = req.body;
 
   if (!name || !email) {
     return res.redirect('/dashboard?error=Name+and+email+are+required');
@@ -52,7 +69,13 @@ async function addUser(req, res) {
       );
     }
 
-    await prisma.user.create({ data: { name, email } });
+    await prisma.user.create({
+      data: {
+        name,
+        email,
+        portalUserName: portalUserName?.trim() || null,
+      },
+    });
     res.redirect('/dashboard?success=User+added+successfully');
   } catch (error) {
     console.error('[Dashboard] Error adding user:', error);
@@ -102,6 +125,13 @@ async function reassignLead(req, res) {
   }
 
   try {
+    const newAssignee = await prisma.user.findUnique({
+      where: { id: assignedToId },
+    });
+    if (!newAssignee) {
+      return res.redirect('/dashboard?error=Selected+user+not+found');
+    }
+
     await prisma.lead.update({
       where: { id },
       data: { assignedToId },
@@ -112,6 +142,17 @@ async function reassignLead(req, res) {
       data: { leadId: id, assignedToId },
     });
 
+    // Queue a portal job to push this re-assignment to IndiaMART
+    if (newAssignee.portalUserName) {
+      await prisma.portalAssignmentJob.create({
+        data: {
+          leadId: id,
+          userId: assignedToId,
+          portalUser: newAssignee.portalUserName,
+        },
+      });
+    }
+
     res.redirect('/dashboard?success=Lead+reassigned+successfully');
   } catch (error) {
     console.error('[Dashboard] Error reassigning lead:', error);
@@ -119,4 +160,52 @@ async function reassignLead(req, res) {
   }
 }
 
-module.exports = { showDashboard, addUser, updateLeadStatus, reassignLead };
+/**
+ * POST /dashboard/leads
+ * Manually creates a new lead from the dashboard form.
+ */
+async function createLead(req, res) {
+  const {
+    customerName,
+    mobile,
+    email,
+    productName,
+    city,
+    message,
+    assignedToId,
+  } = req.body;
+
+  if (!customerName || !mobile || !productName) {
+    return res.redirect(
+      '/dashboard?error=Customer+name%2C+mobile+and+product+are+required'
+    );
+  }
+
+  try {
+    const externalLeadId = 'MANUAL-' + Date.now();
+    await prisma.lead.create({
+      data: {
+        externalLeadId,
+        customerName: customerName.trim(),
+        mobile: mobile.trim(),
+        email: email?.trim() || null,
+        productName: productName.trim(),
+        city: city?.trim() || null,
+        message: message?.trim() || null,
+        assignedToId: assignedToId || null,
+      },
+    });
+    res.redirect('/dashboard?success=Lead+created+successfully');
+  } catch (err) {
+    console.error('[Dashboard] Error creating lead:', err);
+    res.redirect('/dashboard?error=Failed+to+create+lead');
+  }
+}
+
+module.exports = {
+  showDashboard,
+  addUser,
+  updateLeadStatus,
+  reassignLead,
+  createLead,
+};

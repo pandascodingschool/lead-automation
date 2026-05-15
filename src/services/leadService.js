@@ -85,6 +85,17 @@ async function processLead(payload) {
     await prisma.leadAssignmentHistory.create({
       data: { leadId: lead.id, assignedToId: assignedUser.id },
     });
+
+    // Queue a portal assignment job (worker will pick it up)
+    if (assignedUser.portalUserName) {
+      await prisma.portalAssignmentJob.create({
+        data: {
+          leadId: lead.id,
+          userId: assignedUser.id,
+          portalUser: assignedUser.portalUserName,
+        },
+      });
+    }
   }
 
   // Send WhatsApp notification to the customer — runs after DB save, does not block response

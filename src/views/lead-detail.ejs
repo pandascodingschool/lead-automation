@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= lead.customerName %> — Lead Detail</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f7fafc; color: #2d3748; }
+
+    /* ── NAV ── */
+    nav { background: #1a202c; padding: 0 24px; display: flex; align-items: center; gap: 28px; height: 52px; }
+    nav a { color: #a0aec0; text-decoration: none; font-size: 14px; font-weight: 500; }
+    nav a:hover, nav a.active { color: #fff; }
+    nav .brand { font-weight: 700; color: #fff; font-size: 16px; margin-right: 12px; }
+    nav .spacer { flex: 1; }
+    .session-pill {
+      font-size: 12px; font-weight: 600; padding: 4px 10px;
+      border-radius: 999px; border: none; cursor: pointer; text-decoration: none;
+    }
+    .pill-connected    { background:#c6f6d5; color:#276749; }
+    .pill-in-progress  { background:#fefcbf; color:#744210; }
+    .pill-disconnected { background:#fed7d7; color:#742a2a; }
+    .nav-user { color: #a0aec0; font-size: 13px; }
+    .logout-link { color: #fc8181; font-size: 13px; }
+
+    /* ── LAYOUT ── */
+    .page { max-width: 1100px; margin: 0 auto; padding: 28px 20px; }
+    .back { font-size: 13px; color: #4299e1; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 16px; }
+    .back:hover { text-decoration: underline; }
+
+    /* ── HEADER CARD ── */
+    .lead-header {
+      background: #fff; border-radius: 12px; padding: 24px 28px;
+      box-shadow: 0 1px 6px rgba(0,0,0,.07); margin-bottom: 24px;
+      display: flex; gap: 32px; flex-wrap: wrap; align-items: flex-start;
+    }
+    .lead-header .info { flex: 1; min-width: 240px; }
+    .lead-header h1 { font-size: 22px; font-weight: 700; }
+    .lead-header .sub { font-size: 14px; color: #718096; margin-top: 4px; }
+    .lead-header .meta-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin-top: 16px;
+    }
+    .meta-item label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #a0aec0; display: block; }
+    .meta-item span  { font-size: 14px; color: #2d3748; }
+
+    /* status badge */
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .badge-NEW          { background:#ebf8ff; color:#2b6cb0; }
+    .badge-CONTACTED    { background:#e9d8fd; color:#553c9a; }
+    .badge-QUALIFIED    { background:#fefcbf; color:#744210; }
+    .badge-CLOSED_WON   { background:#c6f6d5; color:#276749; }
+    .badge-CLOSED_LOST  { background:#fed7d7; color:#742a2a; }
+
+    /* ── STATUS CHANGE FORM ── */
+    .status-form { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+    .status-form select {
+      padding: 8px 10px; border: 1px solid #cbd5e0; border-radius: 8px;
+      font-size: 13px; outline: none;
+    }
+    .btn-sm {
+      padding: 8px 14px; border-radius: 8px; border: none; cursor: pointer;
+      font-size: 13px; font-weight: 600; transition: opacity .15s;
+    }
+    .btn-sm:hover { opacity: .85; }
+    .btn-primary { background: #3182ce; color: #fff; }
+    .btn-success { background: #38a169; color: #fff; }
+    .btn-gray    { background: #edf2f7; color: #4a5568; }
+
+    /* ── GRID ── */
+    .grid { display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
+    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+
+    /* ── SECTION CARD ── */
+    .section-card {
+      background: #fff; border-radius: 12px; padding: 22px 24px;
+      box-shadow: 0 1px 6px rgba(0,0,0,.07); margin-bottom: 20px;
+    }
+    .section-card h2 { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+
+    /* ── NOTES ── */
+    .notes-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+    .note-item { background: #f7fafc; border-radius: 8px; padding: 12px 14px; }
+    .note-item .note-meta { font-size: 12px; color: #a0aec0; margin-bottom: 4px; }
+    .note-item .note-text { font-size: 14px; }
+
+    textarea {
+      width: 100%; border: 1px solid #cbd5e0; border-radius: 8px;
+      padding: 10px 12px; font-size: 14px; resize: vertical; min-height: 80px;
+      font-family: inherit; outline: none;
+    }
+    textarea:focus { border-color: #4299e1; box-shadow: 0 0 0 3px rgba(66,153,225,.2); }
+    .input-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+    input[type="datetime-local"] {
+      padding: 8px 10px; border: 1px solid #cbd5e0; border-radius: 8px;
+      font-size: 13px; outline: none; flex: 1; min-width: 160px;
+    }
+
+    /* ── FOLLOW-UPS ── */
+    .fu-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .fu-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: #f7fafc; border-radius: 8px; padding: 12px 14px;
+    }
+    .fu-item.done { opacity: .55; }
+    .fu-item .fu-icon { font-size: 18px; margin-top: 1px; }
+    .fu-item .fu-body { flex: 1; }
+    .fu-item .fu-date { font-size: 13px; font-weight: 600; color: #2d3748; }
+    .fu-item .fu-note { font-size: 13px; color: #718096; margin-top: 2px; }
+    .fu-item .fu-done { font-size: 11px; color: #38a169; font-weight: 700; margin-top: 2px; }
+    .fu-item .fu-overdue { font-size: 11px; color: #e53e3e; font-weight: 700; }
+
+    /* ── TIMELINE ── */
+    .timeline { list-style: none; position: relative; padding-left: 20px; }
+    .timeline::before { content: ''; position: absolute; left: 6px; top: 6px; bottom: 6px; width: 2px; background: #e2e8f0; }
+    .timeline li { position: relative; margin-bottom: 16px; }
+    .timeline li::before { content: ''; position: absolute; left: -17px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: #4299e1; border: 2px solid #fff; box-shadow: 0 0 0 2px #4299e1; }
+    .tl-type { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+    .tl-body { font-size: 13px; color: #4a5568; margin: 2px 0 0; }
+    .tl-meta { font-size: 11px; color: #a0aec0; margin-top: 2px; }
+
+    /* type colours */
+    .tl-NOTE          .tl-type { color: #553c9a; }
+    .tl-STATUS_CHANGE .tl-type { color: #2b6cb0; }
+    .tl-ASSIGNMENT    .tl-type { color: #276749; }
+    .tl-FOLLOWUP_ADDED .tl-type { color: #744210; }
+    .tl-FOLLOWUP_DONE  .tl-type { color: #276749; }
+    .tl-WHATSAPP_SENT  .tl-type { color: #553c9a; }
+
+    /* ── ALERT ── */
+    .alert { border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 18px; }
+    .alert-success { background: #c6f6d5; color: #276749; }
+    .alert-error   { background: #fff5f5; color: #c53030; }
+
+    /* ── SIDEBAR INFO ── */
+    .info-list { list-style: none; }
+    .info-list li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f4f8; font-size: 13px; }
+    .info-list li:last-child { border: none; }
+    .info-list .key { color: #a0aec0; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <span class="brand">IndiaMART CRM</span>
+  <a href="/dashboard">Dashboard</a>
+  <a href="/whatsapp-logs">WhatsApp</a>
+  <a href="/portal-jobs">Portal Jobs</a>
+  <span class="spacer"></span>
+  <%
+    const ps = locals.portalSession || {};
+    let pillClass = 'pill-disconnected', pillLabel = '⬤ Portal: Off';
+    if (ps.status === 'connected')    { pillClass = 'pill-connected';   pillLabel = '⬤ Portal: Connected'; }
+    if (ps.status === 'in-progress')  { pillClass = 'pill-in-progress'; pillLabel = '⬤ Portal: Logging in…'; }
+  %>
+  <a href="/portal-jobs" class="session-pill <%= pillClass %>"><%= pillLabel %></a>
+  <% if (currentUser) { %>
+    <span class="nav-user"><%= currentUser.name %></span>
+    <a href="/login/logout" class="logout-link">Sign out</a>
+  <% } %>
+</nav>
+
+<div class="page">
+  <a href="/dashboard" class="back">← Back to Dashboard</a>
+
+  <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+  <% if (error)   { %><div class="alert alert-error"><%= error %></div><% } %>
+
+  <!-- HEADER CARD -->
+  <div class="lead-header">
+    <div class="info">
+      <h1><%= lead.customerName %></h1>
+      <div class="sub"><%= lead.mobile %> <% if (lead.email) { %> &nbsp;·&nbsp; <%= lead.email %><% } %></div>
+      <div class="meta-grid">
+        <div class="meta-item">
+          <label>Product</label>
+          <span><%= lead.productName %></span>
+        </div>
+        <div class="meta-item">
+          <label>City</label>
+          <span><%= lead.city || '—' %></span>
+        </div>
+        <div class="meta-item">
+          <label>Status</label>
+          <span class="badge badge-<%= lead.status %>"><%= statusLabel[lead.status] %></span>
+        </div>
+        <div class="meta-item">
+          <label>Assigned To</label>
+          <span><%= lead.assignedTo ? lead.assignedTo.name : 'Unassigned' %></span>
+        </div>
+        <div class="meta-item">
+          <label>Lead ID</label>
+          <span style="font-size:12px;color:#a0aec0"><%= lead.externalLeadId %></span>
+        </div>
+        <div class="meta-item">
+          <label>Received</label>
+          <span><%= new Date(lead.createdAt).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) %></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Change status -->
+    <form class="status-form" method="POST" action="/leads/<%= lead.id %>/status">
+      <select name="status">
+        <% allStatuses.forEach(s => { %>
+          <option value="<%= s %>" <%= lead.status === s ? 'selected' : '' %>><%= statusLabel[s] %></option>
+        <% }); %>
+      </select>
+      <button type="submit" class="btn-sm btn-primary">Update Status</button>
+    </form>
+  </div>
+
+  <!-- Message preview -->
+  <% if (lead.message) { %>
+  <div class="section-card" style="margin-bottom:24px;padding:16px 24px;">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#a0aec0;margin-bottom:6px;">Enquiry Message</div>
+    <div style="font-size:14px;color:#4a5568;line-height:1.6"><%= lead.message %></div>
+  </div>
+  <% } %>
+
+  <div class="grid">
+    <!-- LEFT column -->
+    <div>
+
+      <!-- ── NOTES ── -->
+      <div class="section-card" id="notes">
+        <h2>Notes</h2>
+        <% if (lead.notes.length === 0) { %>
+          <p style="color:#a0aec0;font-size:13px;margin-bottom:16px">No notes yet.</p>
+        <% } else { %>
+        <ul class="notes-list" style="margin-bottom:16px">
+          <% lead.notes.forEach(n => { %>
+          <li class="note-item">
+            <div class="note-meta">
+              <%= n.user ? n.user.name : 'System' %> &nbsp;·&nbsp;
+              <%= new Date(n.createdAt).toLocaleString('en-IN', {dateStyle:'medium',timeStyle:'short'}) %>
+            </div>
+            <div class="note-text"><%= n.text %></div>
+          </li>
+          <% }); %>
+        </ul>
+        <% } %>
+        <form method="POST" action="/leads/<%= lead.id %>/notes">
+          <textarea name="text" placeholder="Add a note…"></textarea>
+          <div class="input-row">
+            <button type="submit" class="btn-sm btn-primary">Add Note</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- ── FOLLOW-UPS ── -->
+      <div class="section-card" id="followups">
+        <h2>Follow-ups</h2>
+        <% const pending = lead.followUps.filter(f => !f.completedAt); %>
+        <% const done    = lead.followUps.filter(f =>  f.completedAt); %>
+
+        <% if (lead.followUps.length === 0) { %>
+          <p style="color:#a0aec0;font-size:13px;margin-bottom:16px">No follow-ups yet.</p>
+        <% } else { %>
+        <ul class="fu-list" style="margin-bottom:16px">
+          <% pending.forEach(f => { %>
+          <% const overdue = new Date(f.scheduledAt) < now; %>
+          <li class="fu-item">
+            <span class="fu-icon">📅</span>
+            <div class="fu-body">
+              <div class="fu-date">
+                <%= new Date(f.scheduledAt).toLocaleString('en-IN', {dateStyle:'medium',timeStyle:'short'}) %>
+                <% if (overdue) { %><span class="fu-overdue"> OVERDUE</span><% } %>
+              </div>
+              <% if (f.note) { %><div class="fu-note"><%= f.note %></div><% } %>
+              <div class="fu-note">by <%= f.user ? f.user.name : '—' %></div>
+            </div>
+            <form method="POST" action="/leads/<%= lead.id %>/followups/<%= f.id %>/complete" style="flex-shrink:0">
+              <button type="submit" class="btn-sm btn-success" style="font-size:12px">Done ✓</button>
+            </form>
+          </li>
+          <% }); %>
+          <% done.forEach(f => { %>
+          <li class="fu-item done">
+            <span class="fu-icon">✅</span>
+            <div class="fu-body">
+              <div class="fu-date"><%= new Date(f.scheduledAt).toLocaleString('en-IN', {dateStyle:'medium',timeStyle:'short'}) %></div>
+              <% if (f.note) { %><div class="fu-note"><%= f.note %></div><% } %>
+              <div class="fu-done">Completed <%= new Date(f.completedAt).toLocaleDateString('en-IN') %></div>
+            </div>
+          </li>
+          <% }); %>
+        </ul>
+        <% } %>
+
+        <form method="POST" action="/leads/<%= lead.id %>/followups">
+          <div class="input-row">
+            <input type="datetime-local" name="scheduledAt" required />
+            <input type="text" name="note" placeholder="Reason / note (optional)"
+              style="flex:2;padding:8px 10px;border:1px solid #cbd5e0;border-radius:8px;font-size:13px;outline:none;" />
+          </div>
+          <div class="input-row" style="margin-top:8px">
+            <button type="submit" class="btn-sm btn-primary">Schedule Follow-up</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- ── ACTIVITY TIMELINE ── -->
+      <div class="section-card">
+        <h2>Activity Timeline</h2>
+        <% if (lead.activities.length === 0) { %>
+          <p style="color:#a0aec0;font-size:13px">No activity recorded yet.</p>
+        <% } else { %>
+        <ul class="timeline">
+          <% lead.activities.forEach(a => { %>
+          <li class="tl-<%= a.type %>">
+            <div class="tl-type"><%= a.type.replace(/_/g,' ') %></div>
+            <% if (a.body) { %><div class="tl-body"><%= a.body %></div><% } %>
+            <div class="tl-meta">
+              <%= a.user ? a.user.name : 'System' %> &nbsp;·&nbsp;
+              <%= new Date(a.createdAt).toLocaleString('en-IN', {dateStyle:'medium',timeStyle:'short'}) %>
+            </div>
+          </li>
+          <% }); %>
+        </ul>
+        <% } %>
+      </div>
+
+    </div>
+
+    <!-- RIGHT column — sidebar -->
+    <div>
+
+      <!-- WhatsApp logs -->
+      <div class="section-card">
+        <h2>WhatsApp Logs</h2>
+        <% if (lead.whatsAppLogs.length === 0) { %>
+          <p style="color:#a0aec0;font-size:13px">No messages sent yet.</p>
+        <% } else { %>
+        <ul class="info-list">
+          <% lead.whatsAppLogs.forEach(w => { %>
+          <li>
+            <span class="key"><%= w.status === 'sent' ? '✅' : '❌' %> <%= new Date(w.sentAt).toLocaleDateString('en-IN') %></span>
+            <span style="font-size:12px;color:<%= w.status==='sent'?'#276749':'#c53030' %>">
+              <%= w.status === 'sent' ? w.twilioSid || 'sent' : (w.errorMsg || 'failed') %>
+            </span>
+          </li>
+          <% }); %>
+        </ul>
+        <% } %>
+      </div>
+
+      <!-- Assignment history -->
+      <div class="section-card">
+        <h2>Assignment History</h2>
+        <% if (lead.assignmentHistory.length === 0) { %>
+          <p style="color:#a0aec0;font-size:13px">No history.</p>
+        <% } else { %>
+        <ul class="info-list">
+          <% lead.assignmentHistory.forEach(h => { %>
+          <li>
+            <span class="key"><%= h.assignedTo.name %></span>
+            <span style="font-size:11px;color:#a0aec0"><%= new Date(h.assignedAt).toLocaleDateString('en-IN') %></span>
+          </li>
+          <% }); %>
+        </ul>
+        <% } %>
+      </div>
+
+    </div><!-- /right -->
+  </div><!-- /grid -->
+</div><!-- /page -->
+</body>
+</html>
