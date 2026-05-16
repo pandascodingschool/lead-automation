@@ -4,8 +4,8 @@
   "description": "IndiaMART Lead Automation POC - Auto receive, store and assign leads",
   "main": "src/server.js",
   "scripts": {
-    "build": "prisma generate && prisma migrate deploy",
-    "start": "node src/server.js",
+    "build": "prisma generate",
+    "start": "prisma migrate deploy && node src/server.js",
     "dev": "nodemon src/server.js",
     "db:migrate": "npx prisma migrate dev --name init",
     "db:generate": "npx prisma generate",
