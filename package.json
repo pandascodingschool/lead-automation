@@ -4,6 +4,7 @@
   "description": "IndiaMART Lead Automation POC - Auto receive, store and assign leads",
   "main": "src/server.js",
   "scripts": {
+    "build": "prisma generate && prisma migrate deploy",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "db:migrate": "npx prisma migrate dev --name init",
@@ -16,6 +17,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.13.0",
+    "prisma": "^5.13.0",
     "bcryptjs": "^3.0.3",
     "connect-pg-simple": "^10.0.0",
     "dotenv": "^16.4.5",
@@ -26,7 +28,6 @@
     "twilio": "^6.0.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0",
-    "prisma": "^5.13.0"
+    "nodemon": "^3.1.0"
   }
 }
